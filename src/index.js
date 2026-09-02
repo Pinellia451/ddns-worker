@@ -37,10 +37,11 @@ function getIpType(ip) {
 
 // 根据name获取对应的zone_id、api_token和access_key
 function getConfigByName(name, env) {
-  // 构建变量名
-  const zoneIdVarName = `${name}__zone_id`;
-  const apiTokenVarName = `${name}__api_token`;
-  const accessKeyVarName = `${name}__access_key`;
+  // Cloudflare 环境变量名称不支持点号，统一替换为下划线
+  const envName = name.replace(/\./g, '_');
+  const zoneIdVarName = `${envName}__zone_id`;
+  const apiTokenVarName = `${envName}__api_token`;
+  const accessKeyVarName = `${envName}__access_key`;
   
   // 从环境变量中获取值
   const zoneId = env[zoneIdVarName];
@@ -53,11 +54,11 @@ function getConfigByName(name, env) {
 // 获取DNS记录当前IP
 async function getDnsRecordCurrentIp(zoneId, recordName, apiToken, recordType) {
   if (!apiToken) {
-    throw new Error(`未找到${recordName}对应的API令牌，确保name正确或${recordName}__api_token变量在worker中已设置`);
+    throw new Error(`未找到${recordName}对应的API令牌，确保name正确或${recordName.replace(/\./g, '_')}__api_token变量在worker中已设置`);
   }
   
   if (!zoneId) {
-    throw new Error(`未找到${recordName}对应的Zone_ID，确保name正确或${recordName}__zone_id变量在worker中已设置`); 
+    throw new Error(`未找到${recordName}对应的Zone_ID，确保name正确或${recordName.replace(/\./g, '_')}__zone_id变量在worker中已设置`); 
   }
   
   if (!recordName) {
@@ -103,11 +104,11 @@ async function getDnsRecordCurrentIp(zoneId, recordName, apiToken, recordType) {
 // 更新DNS记录
 async function updateDnsRecord(recordId, newIp, zoneId, recordName, apiToken, recordType, proxied, ttl) {
   if (!apiToken) {
-    throw new Error(`缺少API令牌，请确保${recordName}__api_token环境变量已设置`);
+    throw new Error(`缺少API令牌，请确保${recordName.replace(/\./g, '_')}__api_token环境变量已设置`);
   }
   
   if (!zoneId) {
-    throw new Error(`缺少Zone ID，请确保${recordName}__zone_id环境变量已设置`);
+    throw new Error(`缺少Zone ID，请确保${recordName.replace(/\./g, '_')}__zone_id环境变量已设置`);
   }
   
   if (!recordName) {
