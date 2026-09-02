@@ -153,11 +153,13 @@ async function updateDnsRecord(recordId, newIp, zoneId, recordName, apiToken, re
 
 export default {
   async fetch(request, env, ctx) {
-    // 获取客户端IP地址
-    const clientIP = request.headers.get('CF-Connecting-IP');
-    
     // 获取请求URL和路径
     const url = new URL(request.url);
+
+    // 更新请求可通过 ip 参数显式上传IP，未提供时仍使用客户端IP
+    const clientIP = url.pathname === '/update'
+      ? (url.searchParams.get('ip') || request.headers.get('CF-Connecting-IP'))
+      : request.headers.get('CF-Connecting-IP');
     
     // 检查是否是更新DNS的请求
     if (url.pathname === '/update') {
