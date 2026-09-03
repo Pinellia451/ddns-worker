@@ -67,7 +67,7 @@ my_example_com__zone_id
 my_example_com__api_token
 my_example_com__access_key
 ```
-如果只配置一组完整的 `__zone_id`、`__api_token`、`__access_key`，其他域名可通过任意变量名声明，例如 `test_pinellia_uk__emp`（变量值无需使用）。Worker 会对这些域名复用这组凭证。
+如果使用共享凭证，配置 `DDNS_ZONE_ID`、`DDNS_API_TOKEN`、`DDNS_ACCESS_KEY` 三个密钥；其他域名只需添加同名文本变量声明，例如 `test_pinellia_uk`（变量值无需使用）。Worker 会对这些域名复用共享凭证。
 
 ## 使用方法
 ### 手工调用：

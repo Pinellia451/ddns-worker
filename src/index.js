@@ -48,22 +48,12 @@ function getConfigByName(name, env) {
   let apiToken = env[apiTokenVarName];
   let accessKey = env[accessKeyVarName];
 
-  // 若该域名通过任意 `${域名}__...` 变量声明，且环境中只有一组完整凭证，复用该凭证
-  // 使用 getOwnPropertyNames 兼容 Cloudflare 的 Secret 绑定
-  const envKeys = Object.getOwnPropertyNames(env);
-  const isDeclared = envKeys.some(key => key.startsWith(`${envName}__`));
+  // 仅配置域名变量（值无需使用）时，复用共享凭证
+  const isDeclared = env[envName] !== undefined || env[`${envName}__emp`] !== undefined;
   if (!(zoneId && apiToken && accessKey) && isDeclared) {
-    const credentialPrefixes = envKeys
-      .filter(key => key.endsWith('__zone_id'))
-      .map(key => key.slice(0, -'__zone_id'.length))
-      .filter(prefix => env[`${prefix}__api_token`] && env[`${prefix}__access_key`]);
-
-    if (credentialPrefixes.length === 1) {
-      const prefix = credentialPrefixes[0];
-      zoneId = env[`${prefix}__zone_id`];
-      apiToken = env[`${prefix}__api_token`];
-      accessKey = env[`${prefix}__access_key`];
-    }
+    zoneId = env.DDNS_ZONE_ID;
+    apiToken = env.DDNS_API_TOKEN;
+    accessKey = env.DDNS_ACCESS_KEY;
   }
   
   return { zoneId, apiToken, accessKey, recordName: name };
