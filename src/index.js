@@ -49,9 +49,11 @@ function getConfigByName(name, env) {
   let accessKey = env[accessKeyVarName];
 
   // 若该域名通过任意 `${域名}__...` 变量声明，且环境中只有一组完整凭证，复用该凭证
-  const isDeclared = Object.keys(env).some(key => key.startsWith(`${envName}__`));
+  // 使用 getOwnPropertyNames 兼容 Cloudflare 的 Secret 绑定
+  const envKeys = Object.getOwnPropertyNames(env);
+  const isDeclared = envKeys.some(key => key.startsWith(`${envName}__`));
   if (!(zoneId && apiToken && accessKey) && isDeclared) {
-    const credentialPrefixes = Object.keys(env)
+    const credentialPrefixes = envKeys
       .filter(key => key.endsWith('__zone_id'))
       .map(key => key.slice(0, -'__zone_id'.length))
       .filter(prefix => env[`${prefix}__api_token`] && env[`${prefix}__access_key`]);
