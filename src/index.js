@@ -89,6 +89,7 @@ async function getDnsRecordCurrentIp(zoneId, recordName, apiToken, recordType) {
       return {
         recordId: data.result[0].id,
         currentIp: data.result[0].content,
+        records: data.result,
         recordType: data.result[0].type,
         proxied: data.result[0].proxied,
         ttl: data.result[0].ttl
@@ -115,16 +116,13 @@ async function updateDnsRecord(recordId, newIp, zoneId, recordName, apiToken, re
     throw new Error("缺少记录名称，请提供name参数");
   }
   
-  if (!recordId) {
-    throw new Error("缺少记录ID，无法更新DNS记录");
-  }
-  
   try {
-    // 使用正确的API端点更新DNS记录
-    const response = await fetch(
-      `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${recordId}`,
-      {
-        method: 'PUT',
+    // 有记录时更新，没有记录ID时创建新记录
+    const endpoint = recordId
+      ? `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${recordId}`
+      : `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`;
+    const response = await fetch(endpoint, {
+        method: recordId ? 'PUT' : 'POST',
         headers: {
           'Authorization': `Bearer ${apiToken}`,
           'Content-Type': 'application/json'
@@ -156,20 +154,25 @@ export default {
     // 获取请求URL和路径
     const url = new URL(request.url);
 
-    // 更新请求可通过 ip 参数显式上传IP，未提供时仍使用客户端IP
-    const clientIP = url.pathname === '/update'
+    // 更新请求可通过逗号分隔的 ip 参数上传多个IP，未提供时仍使用客户端IP
+    const clientIPs = (url.pathname === '/update'
       ? (url.searchParams.get('ip') || request.headers.get('CF-Connecting-IP'))
-      : request.headers.get('CF-Connecting-IP');
+      : request.headers.get('CF-Connecting-IP'))
+      .split(',')
+      .map(ip => ip.trim())
+      .filter(Boolean);
+    const clientIP = clientIPs[0];
     
     // 检查是否是更新DNS的请求
     if (url.pathname === '/update') {
       try {
         // 验证客户端IP是否为有效的IP地址并获取类型
-        const ipInfo = getIpType(clientIP);
-        if (!ipInfo.valid) {
+        const ipInfos = clientIPs.map(getIpType);
+        const ipInfo = ipInfos[0];
+        if (!ipInfo || ipInfos.some(info => !info.valid || info.type !== ipInfo.type)) {
           return new Response(JSON.stringify({
             success: false,
-            message: `无效的IP地址: ${clientIP}`
+            message: `无效的IP地址: ${clientIPs.join(',')}`
           }), {
             status: 400,
             headers: {
@@ -214,7 +217,7 @@ export default {
         }
         
         // 获取当前DNS记录信息
-        const { recordId, currentIp, recordType, proxied, ttl } = await getDnsRecordCurrentIp(zoneId, recordName, apiToken, ipInfo.type);
+        const { records, currentIp, recordType, proxied, ttl } = await getDnsRecordCurrentIp(zoneId, recordName, apiToken, ipInfo.type);
         
         // 确保客户端IP类型与DNS记录类型匹配
         if (recordType !== ipInfo.type) {
@@ -230,13 +233,14 @@ export default {
           });
         }
         
-        // 比较当前IP和客户端IP
-        if (currentIp === clientIP) {
+        // 比较当前IP列表和上传的IP列表
+        const currentIps = records.map(record => record.content);
+        if (currentIps.length === clientIPs.length && clientIPs.every(ip => currentIps.includes(ip))) {
           return new Response(JSON.stringify({
             success: true,
             updated: false,
             message: "DNS记录已是最新，无需更新",
-            current_ip: currentIp,
+            current_ip: currentIps.join(','),
             record_type: recordType,
             proxied: proxied
           }), {
@@ -246,16 +250,18 @@ export default {
             }
           });
         }
-        
-        // 更新DNS记录，保持原有的proxied设置
-        const updateResult = await updateDnsRecord(recordId, clientIP, zoneId, recordName, apiToken, recordType, proxied, ttl);
+
+        // 更新已有记录，并为多余的IP创建新记录
+        const updateResults = await Promise.all(clientIPs.map((ip, index) =>
+          updateDnsRecord(records[index]?.id, ip, zoneId, recordName, apiToken, recordType, proxied, ttl)
+        ));
         
         return new Response(JSON.stringify({
           success: true,
           updated: true,
           message: "DNS记录已更新",
-          old_ip: currentIp,
-          new_ip: clientIP,
+          old_ip: currentIps.join(','),
+          new_ip: clientIPs.join(','),
           record_type: recordType,
           proxied: proxied
         }), {
