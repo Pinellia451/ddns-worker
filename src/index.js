@@ -43,10 +43,26 @@ function getConfigByName(name, env) {
   const apiTokenVarName = `${envName}__api_token`;
   const accessKeyVarName = `${envName}__access_key`;
   
-  // 从环境变量中获取值
-  const zoneId = env[zoneIdVarName];
-  const apiToken = env[apiTokenVarName];
-  const accessKey = env[accessKeyVarName];
+  // 优先使用域名专属凭证
+  let zoneId = env[zoneIdVarName];
+  let apiToken = env[apiTokenVarName];
+  let accessKey = env[accessKeyVarName];
+
+  // 若该域名通过任意 `${域名}__...` 变量声明，且环境中只有一组完整凭证，复用该凭证
+  const isDeclared = Object.keys(env).some(key => key.startsWith(`${envName}__`));
+  if (!(zoneId && apiToken && accessKey) && isDeclared) {
+    const credentialPrefixes = Object.keys(env)
+      .filter(key => key.endsWith('__zone_id'))
+      .map(key => key.slice(0, -'__zone_id'.length))
+      .filter(prefix => env[`${prefix}__api_token`] && env[`${prefix}__access_key`]);
+
+    if (credentialPrefixes.length === 1) {
+      const prefix = credentialPrefixes[0];
+      zoneId = env[`${prefix}__zone_id`];
+      apiToken = env[`${prefix}__api_token`];
+      accessKey = env[`${prefix}__access_key`];
+    }
+  }
   
   return { zoneId, apiToken, accessKey, recordName: name };
 }

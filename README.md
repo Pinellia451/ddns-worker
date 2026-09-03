@@ -63,17 +63,19 @@ flowchart TD
 ```
 例如，要为 `my.example.com` 配置 DDNS 更新：
 ```bash
-my.example.com__zone_id
-my.example.com__api_token
-my.example.com__access_key
+my_example_com__zone_id
+my_example_com__api_token
+my_example_com__access_key
 ```
+如果只配置一组完整的 `__zone_id`、`__api_token`、`__access_key`，其他域名可通过任意变量名声明，例如 `test_pinellia_uk__emp`（变量值无需使用）。Worker 会对这些域名复用这组凭证。
+
 ## 使用方法
 ### 手工调用：
 
 - **查询当前 IP**：直接访问 `https://your-worker-domain.workers.dev/`(修改route后可以为https://worker.example.com)
 - **更新 DNS 记录**：访问 `https://your-worker-domain.workers.dev/update?name=your_dns_record_name&key=your_access_key&ip=1.2.3.4`
   - `name`：需要更新的 DNS 记录名称，使用完整域名（如 `my.example.com`）
-  - `key`：访问密钥，用于验证更新请求，要等于worker中的my.example.com__access_key值
+  - `key`：访问密钥，用于验证更新请求，要等于 worker 中配置的 `my_example_com__access_key` 值
   - `ip`：要更新的公网 IP（可选；不提供时使用请求客户端 IP）
 
 **注意**：系统会自动检测您的 IP 类型（IPv4 或 IPv6），并更新相应类型的 DNS 记录（A 记录或 AAAA 记录）。请确保您的域名已经配置了相应类型的 DNS 记录。
